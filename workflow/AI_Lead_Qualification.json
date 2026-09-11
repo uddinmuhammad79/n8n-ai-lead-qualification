@@ -1,0 +1,411 @@
+{
+  "name": "AI Lead Qualification",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Get a Free Automation Consultation",
+        "formDescription": "Tell us what you need — we'll get back to you within one business day.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Company"
+            },
+            {
+              "fieldLabel": "What do you need help with?",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Budget Range",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Under $1,000"
+                  },
+                  {
+                    "option": "$1,000 - $5,000"
+                  },
+                  {
+                    "option": "$5,000 - $20,000"
+                  },
+                  {
+                    "option": "$20,000+"
+                  },
+                  {
+                    "option": "Not Sure"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a9d1452d-a5b3-4d07-9716-c60a5eeb564d",
+      "name": "On form submission",
+      "webhookId": "a6844448-7b74-458c-8423-11ab3e5029d2"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"score\": {{ $json.score }},\n  \"category\": \"{{ $json.category }}\",\n  \"summary\": \"{{ $json.summary }}\",\n  \"next_step\": \"{{ $json.suggested_next_step }}\",\n  \"name\": \"{{ $('On form submission').item.json.Name }}\",\n  \"email\": \"{{ $('On form submission').item.json.Email }}\",\n  \"company\": \"{{ $('On form submission').item.json.Company }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        704,
+        0
+      ],
+      "id": "9c2c027c-187f-4780-bd49-6790222447d5",
+      "name": "Flatten AI Output"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "hot-leads",
+          "mode": "name"
+        },
+        "text": "=🔥 <!here> *HOT LEAD — score {{ $('Flatten AI Output').item.json.score }}/10*\n\n*{{ $('Flatten AI Output').item.json.name }}* — {{ $('Flatten AI Output').item.json.company }}\n📧 {{ $('Flatten AI Output').item.json.email }}\n\n*Summary:* {{ $('Flatten AI Output').item.json.summary }}\n*Next step:* {{ $('Flatten AI Output').item.json.next_step }}\n\n→ Contact is already in HubSpot.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1392,
+        -112
+      ],
+      "id": "786ffbe1-6c7e-4591-97bc-d890e222d359",
+      "name": "Alert #hot-leads",
+      "webhookId": "02f6a7b3-a0fe-43b8-ad38-a0ab952386a5",
+      "credentials": {
+        "slackApi": {
+          "id": "hiiPtld1HF9L69tv",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "leads",
+          "mode": "name"
+        },
+        "text": "=📥 New lead logged: *{{ $('Flatten AI Output').item.json.name }}* ({{ $('Flatten AI Output').item.json.company }}) — score {{ $('Flatten AI Output').item.json.score }}/10, {{ $('Flatten AI Output').item.json.category }}\n{{ $('Flatten AI Output').item.json.summary }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1392,
+        128
+      ],
+      "id": "d1bff1bb-4748-45b7-a717-93baef5842da",
+      "name": "Alert #leads",
+      "webhookId": "02f6a7b3-a0fe-43b8-ad38-a0ab952386a5",
+      "credentials": {
+        "slackApi": {
+          "id": "hiiPtld1HF9L69tv",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a sales lead qualification engine for a B2B automation consultancy.\nYou receive raw form submissions and return ONLY a JSON object — no prose, no markdown fences.\n\nScore each lead 1-10 using this rubric:\n- Budget (up to 4 pts): $20,000+ = 4 · $5,000–$20,000 = 3 · $1,000–$5,000 = 2 · Under $1,000 = 1 · Not sure yet = 1\n- Problem specificity (up to 3 pts): describes a concrete, recurring process with volume/time numbers = 3 · concrete but vague on scale = 2 · generic (\"want to use AI\") = 1 · unintelligible or empty = 0\n- Fit (up to 3 pts): the problem is an integration/automation problem we can solve (connecting systems, workflows, data entry, AI processing) = 3 · adjacent (e.g., wants a full custom app) = 1 · not a fit (job seeker, vendor pitch, spam) = 0\n\nCategory: 8-10 = \"hot\" · 5-7 = \"warm\" · 1-4 = \"cold\".\n\nReturn exactly this JSON shape:\n{\n  \"score\": <integer 1-10>,\n  \"category\": \"hot\" | \"warm\" | \"cold\",\n  \"summary\": \"<2 sentences max: who they are and what they need, written for a salesperson skimming Slack>\",\n  \"suggested_next_step\": \"<one concrete action, e.g. 'Book a discovery call within 24h — mention the 2 hrs/day manual entry cost' or 'Send pricing one-pager, low priority'>\"\n}\n\nIf fields are missing or nonsensical, still return valid JSON — score low and say why in the summary.",
+              "role": "assistant"
+            },
+            {
+              "content": "=New lead submission:\nName: {{ $json.Name }}\nEmail: {{ $json.Email }}\nCompany: {{ $json.Company }}\nWhat they need: {{ $json['What do you need help with?'] }}\nBudget range: {{ $json['Budget range'] }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "67bdadbf-2d73-44fb-986b-d9963fb3beef",
+      "name": "Claude: Score & Summarize Lead",
+      "credentials": {
+        "anthropicApi": {
+          "id": "qifemiDz5kXUieMB",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = $json;\nlet text = out.content?.[0]?.text ?? out.message?.content ?? out.text ?? out.output;\n\nif (typeof text === 'string') {\n  // Strip markdown formatting if Claude wrapped the JSON in fences\n  text = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n  return [{ json: JSON.parse(text) }];\n}\n\nreturn [{ json: text }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "cc6e1fd5-a5a2-489e-890e-f0af15d0b67c",
+      "name": "Parse JSON"
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "companyName": "={{ $json.company }}",
+          "customPropertiesUi": {
+            "customPropertiesValues": [
+              {
+                "property": "=lead_score",
+                "value": "={{ $json.score }}"
+              },
+              {
+                "property": "=lead_category",
+                "value": "={{ $json.category }}"
+              },
+              {
+                "property": "=ai_summary",
+                "value": "={{ $json.summary }}"
+              },
+              {
+                "property": "=suggested_next_step",
+                "value": "={{ $json.next_step }}"
+              }
+            ]
+          },
+          "firstName": "={{ $json.name.split(' ')[0] }}",
+          "lastName": "={{ $json.name.split(' ').slice(1).join(' ') || '-' }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        944,
+        0
+      ],
+      "id": "7a876119-9d56-415c-bdaa-0843c4a138d1",
+      "name": "Create/Update HubSpot Contact",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "Sol4nLgwcRCS8FnU",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f33205e8-f2a7-4362-97d4-505d66cf59d1",
+              "leftValue": "={{ $('Flatten AI Output').item.json.score }}",
+              "rightValue": 6,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "683d3cad-3fd9-4f94-a697-e275f3bb841a",
+      "name": "Hot Lead?"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Capture\nLead submits the built-in n8n form: name, email, company, need, budget.)"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -128,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "5f6332c1-4719-4b3c-b3af-669233789a05",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 2. AI Qualification\nClaude scores 1-10 against a budget/specificity/fit rubric and returns structured JSON.\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        224,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "451b0894-49f0-486c-972c-56763475c4de",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 3. CRM + Routing\nContact upserted to HubSpot with AI fields; score ≥ 7 pings #hot-leads with @here, else quiet log."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "06c9d88e-6776-457c-b0e9-03a74aa5bb8c",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "**AI Lead Qualification — form → Claude → HubSpot → Slack in <15s**",
+        "height": 80,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -448,
+        -480
+      ],
+      "typeVersion": 1,
+      "id": "fec950fb-d904-4677-bf5f-dccb55be6d6f",
+      "name": "Sticky Note3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Claude: Score & Summarize Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten AI Output": {
+      "main": [
+        [
+          {
+            "node": "Create/Update HubSpot Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Score & Summarize Lead": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON": {
+      "main": [
+        [
+          {
+            "node": "Flatten AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create/Update HubSpot Contact": {
+      "main": [
+        [
+          {
+            "node": "Hot Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot Lead?": {
+      "main": [
+        [
+          {
+            "node": "Alert #hot-leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert #leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "H29UMLieEfyny6YK",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "b6af9b1d-545a-4756-8a48-03e88be24fac",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e494f498d2ecc4fdd2b4aed4f6bf30816a7ec222bb7db5fb9bf0f544a320446c"
+  },
+  "nodeGroups": [],
+  "id": "XtIdsH7JZZMak19x",
+  "tags": []
+}
