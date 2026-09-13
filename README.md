@@ -5,7 +5,7 @@ A lead fills out your form. Within seconds, AI scores and summarizes them,
 they're in your CRM, and your sales channel gets pinged — hot leads flagged
 with @here. No human touched anything.
 
-🎥 **[90-second demo (Loom)](PASTE_LOOM_URL)**
+🎥 **[90-second demo (Loom)](https://www.loom.com/share/fd6c35d894c348c0950fe0b41acc526a)**
 
 ## The problem
 
